@@ -96,6 +96,12 @@ class BookService:
         if existing is None:
             raise BookNotFoundException(book_id)
 
+        # Проверить уникальность ISBN, если он передан и отличается от текущего
+        if book_data.isbn is not None and book_data.isbn != existing.isbn:
+            duplicate = await self.book_repo.get_by_isbn(book_data.isbn)
+            if duplicate is not None:
+                raise BookAlreadyExistsException(book_data.isbn)
+
         # Валидация если обновляется год/страницы
         if book_data.year is not None:
             self._validate_year(book_data.year)
@@ -105,8 +111,10 @@ class BookService:
         # Обновить
         updated = await self.book_repo.update(
             book_id,
-            **book_data.dict(exclude_unset=True)
+            **book_data.model_dump(exclude_unset=True)
         )
+        if updated is None:
+            raise BookNotFoundException(book_id)
 
         return BookMapper.to_show_book(updated)
 

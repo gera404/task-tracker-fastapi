@@ -2,6 +2,7 @@ from uuid import UUID
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
+from pydantic import AfterValidator
 
 from ..schemas.book import (
     BookCreate,
@@ -22,6 +23,14 @@ router = APIRouter(prefix="/books", tags=["Books"])
     summary="Создать книгу",
     description="Создать новую книгу в каталоге с автоматическим обогащением из Open Library",
 )
+
+def reject_nul(v: str | None) -> str | None:
+    if v is not None and "\x00" in v:
+        raise ValueError("String cannot contain NUL character")
+    return v
+
+CleanQueryStr = Annotated[str | None, AfterValidator(reject_nul)]
+
 async def create_book(
         book_data: BookCreate,
         service: BookServiceDep,
@@ -52,7 +61,7 @@ async def get_books(
         title: str | None = Query(None, description="Поиск по названию"),
         author: str | None = Query(None, description="Поиск по автору"),
         genre: str | None = Query(None, description="Фильтр по жанру"),
-        year: int | None = Query(None, description="Фильтр по году"),
+        year: int | None = Query(None, ge=1000, le=2100, description="Фильтр по году"),
         available: bool | None = Query(None, description="Фильтр по доступности"),
 ):
     """

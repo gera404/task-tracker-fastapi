@@ -40,7 +40,7 @@ class OpenLibraryException(AppException):
             status_code=503,
         )
 
-class OpenLibraryTimeoutException(AppException):
+class OpenLibraryTimeoutException(OpenLibraryException):
     """Таймаут при обращении к Open Library API."""
     def __init__(self, timeout: float):
         super().__init__(

@@ -1,3 +1,4 @@
+import httpx
 from ..base.base_client import BaseApiClient
 from ...domain.exceptions import OpenLibraryException, OpenLibraryTimeoutException
 

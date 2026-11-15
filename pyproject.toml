@@ -12,7 +12,7 @@ authors = [
     {name = "Максим",email = "maksim.lucky22@yandex.ru"}
 ]
 readme = "README.md"
-requires-python = "^3.11"
+requires-python = ">=3.11"
 dependencies = [
     "fastapi (>=0.162.4,<0.163.0)",
     "uvicorn[standard] (>=0.54.0,<0.55.0)",
@@ -39,3 +39,8 @@ dev = [
     "ruff (>=0.17.4,<0.18.0)",
     "mypy (>=2.4.1,<3.0.0)"
 ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+

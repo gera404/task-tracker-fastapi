@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from typing import Any
 
 
 class AppException(Exception):
@@ -14,7 +15,7 @@ class AppException(Exception):
 class NotFoundException(AppException):
     """Ресурс не найден."""
 
-    def __init__(self, resource: str, identifier: any):
+    def __init__(self, resource: str, identifier: Any):
         super().__init__(
             message=f"{resource} with id '{identifier}' not found",
             status_code=404,

@@ -1,3 +1,4 @@
+import asyncio
 from abc import ABC, abstractmethod
 import httpx
 import logging
@@ -72,21 +73,22 @@ class BaseApiClient(ABC):
                 response.raise_for_status()
                 return response.json()
 
-            except httpx.TimeoutException:
-                if attempt == self.retries - 1:
-                    self.logger.error(f"Timeout after {self.retries} attempts")
-                    raise
 
+            except httpx.RequestError as e:
+                if attempt == self.retries - 1:
+                    self.logger.error(f"Request error after {self.retries} attempts: {e}")
+                    raise
                 wait_time = self.backoff * (2 ** attempt)
-                self.logger.warning(f"Timeout, retrying in {wait_time}s...")
-                time.sleep(wait_time)
+                self.logger.warning(f"Request error ({e}), retrying in {wait_time}s...")
+                await asyncio.sleep(wait_time)
+
 
             except httpx.HTTPStatusError as e:
                 # 5xx ошибки - retry
                 if e.response.status_code >= 500 and attempt < self.retries - 1:
                     wait_time = self.backoff * (2 ** attempt)
                     self.logger.warning(f"Server error, retrying in {wait_time}s...")
-                    time.sleep(wait_time)
+                    await asyncio.sleep(wait_time)
                 else:
                     self.logger.error(f"HTTP error: {e}")
                     raise

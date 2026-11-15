@@ -1,42 +1,50 @@
 from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
+from fastapi import Query
+
+class AppBaseModel(BaseModel):
+    """Базовая модель с защитой от NUL-байтов во всех строках."""
+
+    @field_validator("*", mode="before")
+    @classmethod
+    def reject_nul_byte(cls, value):
+        if isinstance(value, str) and "\x00" in value:
+            raise ValueError("String cannot contain NUL character")
+        return value
 
 
-class BookBase(BaseModel):
+class BookBase(AppBaseModel):
     """Базовая схема с общими полями."""
     title: str = Field(..., min_length=1, max_length=500)
     author: str = Field(..., min_length=1, max_length=300)
     year: int = Field(..., ge=1000, le=2100)
     genre: str = Field(..., min_length=1, max_length=100)
-    pages: int = Field(..., gt=0)
+    pages: int = Field(..., gt=0, le=100_000)
 
+def validate_isbn(v: str | None) -> str | None:
+    """Валидация формата ISBN."""
+    if v is None:
+        return v
 
-class BookCreate(BookBase):
+    # Удалить дефисы
+    clean = v.replace("-", "").replace(" ", "")
+
+    # Проверить что только цифры (и X для ISBN-10)
+    if not clean.replace("X", "").isdigit():
+        raise ValueError("ISBN must contain only digits")
+
+    # Проверить длину
+    if len(clean) not in (10, 13):
+        raise ValueError("ISBN must be 10 or 13 digits")
+
+    return clean
+
+class BookCreate(AppBaseModel):
     """Схема для создания книги."""
     isbn: str | None = Field(None, min_length=10, max_length=20)
     description: str | None = Field(None, max_length=5000)
-
-    @field_validator("isbn")
-    @classmethod
-    def validate_isbn(cls, v: str | None) -> str | None:
-        """Валидация формата ISBN."""
-        if v is None:
-            return v
-
-        # Удалить дефисы
-        clean = v.replace("-", "").replace(" ", "")
-
-        # Проверить что только цифры (и X для ISBN-10)
-        if not clean.replace("X", "").isdigit():
-            raise ValueError("ISBN must contain only digits")
-
-        # Проверить длину
-        if len(clean) not in (10, 13):
-            raise ValueError("ISBN must be 10 or 13 digits")
-
-        return v
-
+    _check_isbn = field_validator("isbn")(validate_isbn)
     model_config = {
         "json_schema_extra": {
             "examples": [
@@ -53,8 +61,16 @@ class BookCreate(BookBase):
         }
     }
 
+    class BookBase(AppBaseModel):
+        """Базовая схема с общими полями."""
+        title: str = Field(..., min_length=1, max_length=500)
+        author: str = Field(..., min_length=1, max_length=300)
+        year: int = Field(..., ge=1000, le=2100)
+        genre: str = Field(..., min_length=1, max_length=100)
+        pages: int = Field(..., gt=0, le=100_000)
 
-class BookUpdate(BaseModel):
+
+class BookUpdate(AppBaseModel):
     """Схема для обновления книги (все поля опциональны)."""
     title: str | None = Field(None, min_length=1, max_length=500)
     author: str | None = Field(None, min_length=1, max_length=300)
@@ -62,9 +78,18 @@ class BookUpdate(BaseModel):
     genre: str | None = Field(None, min_length=1, max_length=100)
     pages: int | None = Field(None, gt=0)
     available: bool | None = None
-    isbn: str | None = None
+    isbn: str | None = Field(None, min_length=10, max_length=20)
     description: str | None = None
 
+    _check_isbn = field_validator("isbn")(validate_isbn)
+
+
+    @field_validator("title", "author", "year", "genre", "pages", "available")
+    @classmethod
+    def not_null(cls, value):
+        if value is None:
+            raise ValueError("Field cannot be null")
+        return value
 
 class ShowBook(BookBase):
     """Схема для отображения книги (response)."""
