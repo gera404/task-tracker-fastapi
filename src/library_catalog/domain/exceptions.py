@@ -1,5 +1,7 @@
 from uuid import UUID
+
 from ..core.exceptions import AppException, NotFoundException
+
 
 class BookNotFoundException(NotFoundException):
     """Книга не найдена."""
@@ -43,7 +45,4 @@ class OpenLibraryException(AppException):
 class OpenLibraryTimeoutException(OpenLibraryException):
     """Таймаут при обращении к Open Library API."""
     def __init__(self, timeout: float):
-        super().__init__(
-            message=f"Open Library API timeout after {timeout}s",
-            status_code=504,
-        )
+        super().__init__(message=f"Open Library API timeout after {timeout}s")

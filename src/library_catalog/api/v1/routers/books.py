@@ -1,28 +1,18 @@
-from uuid import UUID
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 from pydantic import AfterValidator
 
+from ...dependencies import BookServiceDep
 from ..schemas.book import (
     BookCreate,
     BookUpdate,
     ShowBook,
-    BookFilters,
 )
 from ..schemas.common import PaginatedResponse, PaginationParams
-from ...dependencies import BookServiceDep
 
 router = APIRouter(prefix="/books", tags=["Books"])
-
-
-@router.post(
-    "/",
-    response_model=ShowBook,
-    status_code=status.HTTP_201_CREATED,
-    summary="Создать книгу",
-    description="Создать новую книгу в каталоге с автоматическим обогащением из Open Library",
-)
 
 def reject_nul(v: str | None) -> str | None:
     if v is not None and "\x00" in v:
@@ -30,7 +20,13 @@ def reject_nul(v: str | None) -> str | None:
     return v
 
 CleanQueryStr = Annotated[str | None, AfterValidator(reject_nul)]
-
+@router.post(
+    "/",
+    response_model=ShowBook,
+    status_code=status.HTTP_201_CREATED,
+    summary="Создать книгу",
+    description="Создать новую книгу в каталоге с автоматическим обогащением из Open Library",
+)
 async def create_book(
         book_data: BookCreate,
         service: BookServiceDep,
@@ -58,9 +54,9 @@ async def create_book(
 async def get_books(
         service: BookServiceDep,
         pagination: Annotated[PaginationParams, Depends()],
-        title: str | None = Query(None, description="Поиск по названию"),
-        author: str | None = Query(None, description="Поиск по автору"),
-        genre: str | None = Query(None, description="Фильтр по жанру"),
+        title: Annotated[CleanQueryStr | None, Query(description="Поиск по названию")] = None,
+        author: Annotated[CleanQueryStr | None, Query(description="Поиск по автору")] = None,
+        genre: Annotated[CleanQueryStr | None, Query(description="Фильтр по жанру")] = None,
         year: int | None = Query(None, ge=1000, le=2100, description="Фильтр по году"),
         available: bool | None = Query(None, description="Фильтр по доступности"),
 ):

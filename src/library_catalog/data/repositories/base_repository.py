@@ -1,4 +1,4 @@
-from typing import Any, Generic, Type, TypeVar
+from typing import Any, Generic, TypeVar
 from uuid import UUID
 
 from sqlalchemy import select
@@ -12,7 +12,7 @@ T = TypeVar("T", bound=Base)
 class BaseRepository(Generic[T]):
     """Базовый Generic-репозиторий для асинхронных CRUD-операций."""
 
-    def __init__(self, session: AsyncSession, model: Type[T]) -> None:
+    def __init__(self, session: AsyncSession, model: type[T]) -> None:
         self.session = session
         self.model = model
 

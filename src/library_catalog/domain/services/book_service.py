@@ -1,4 +1,5 @@
 from uuid import UUID
+
 from ...api.v1.schemas.book import BookCreate, BookUpdate, ShowBook
 from ...data.repositories.book_repository import BookRepository
 from ...external.openlibrary.client import OpenLibraryClient
@@ -98,7 +99,7 @@ class BookService:
 
         # Проверить уникальность ISBN, если он передан и отличается от текущего
         if book_data.isbn is not None and book_data.isbn != existing.isbn:
-            duplicate = await self.book_repo.get_by_isbn(book_data.isbn)
+            duplicate = await self.book_repo.find_by_isbn(book_data.isbn)
             if duplicate is not None:
                 raise BookAlreadyExistsException(book_data.isbn)
 

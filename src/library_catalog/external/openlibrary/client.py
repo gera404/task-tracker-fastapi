@@ -1,6 +1,7 @@
 import httpx
-from ..base.base_client import BaseApiClient
+
 from ...domain.exceptions import OpenLibraryException, OpenLibraryTimeoutException
+from ..base.base_client import BaseApiClient
 
 
 class OpenLibraryClient(BaseApiClient):
@@ -120,11 +121,11 @@ class OpenLibraryClient(BaseApiClient):
 
         # Publisher
         if publisher := doc.get("publisher"):
-            result["publisher"] = publisher[0] if publisher else None
+            result["publisher"] = publisher[0]
 
         # Language
         if language := doc.get("language"):
-            result["language"] = language[0] if language else None
+            result["language"] = language[0]
 
         # Ratings
         if ratings := doc.get("ratings_average"):

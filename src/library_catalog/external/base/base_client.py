@@ -1,8 +1,8 @@
 import asyncio
-from abc import ABC, abstractmethod
-import httpx
 import logging
-import time
+from abc import ABC, abstractmethod
+
+import httpx
 
 
 class BaseApiClient(ABC):
@@ -33,7 +33,6 @@ class BaseApiClient(ABC):
     @abstractmethod
     def client_name(self) -> str:
         """Имя клиента для логирования."""
-        pass
 
     def _build_url(self, path: str) -> str:
         """Построить полный URL."""
@@ -92,6 +91,7 @@ class BaseApiClient(ABC):
                 else:
                     self.logger.error(f"HTTP error: {e}")
                     raise
+        raise RuntimeError("Unreachable")
 
     async def _get(self, path: str, **kwargs) -> dict:
         """GET запрос."""

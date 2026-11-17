@@ -2,17 +2,17 @@
 Library Catalog API - Точка входа приложения.
 """
 
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .api.v1.routers import books, health
 from .core.config import settings
 from .core.database import dispose_engine
 from .core.exceptions import register_exception_handlers
 from .core.logging_config import setup_logging
-from .api.v1.routers import books, health
-
 
 # ========== LIFECYCLE EVENTS ==========
 
@@ -27,13 +27,13 @@ async def lifespan(app: FastAPI):
     """
     # Startup
     setup_logging()
-    print("🚀 Application started")
-
+    logger = logging.getLogger(__name__)
+    logger.info("🚀 Application started")
     yield
 
     # Shutdown
     await dispose_engine()
-    print("👋 Application stopped")
+    logger.info("👋 Application stopped")
 
 
 # ========== CREATE APP ==========

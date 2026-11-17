@@ -46,12 +46,12 @@ poetry run uvicorn src.library_catalog.main:app --reload
 
 ### Проверка состояния сервиса и БД
 ```bash
-curl -X GET "http://127.0.0"
+curl -X GET "http://127.0.0.1:8000/api/v1/books"
 ```
 
 ### Создание книги
 ```bash
-curl -X POST "http://127.0.0" \
+curl -X POST "http://127.0.0.1:8000/api/v1/books" \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Clean Code",
@@ -71,7 +71,7 @@ curl -X GET "http://127.0.0?genre=Programming&page=1&page_size=10"
 
 ### Частичное обновление книги
 ```bash
-curl -X PATCH "http://127.0.0{book_id}" \
+curl -X PATCH "http://127.0.0/{book_id}" \
   -H "Content-Type: application/json" \
   -d '{
     "available": false
@@ -80,7 +80,7 @@ curl -X PATCH "http://127.0.0{book_id}" \
 
 ### Удаление книги
 ```bash
-curl -X DELETE "http://127.0.0{book_id}"
+curl -X DELETE "http://127.0.0/{book_id}"
 ```
 
 ---

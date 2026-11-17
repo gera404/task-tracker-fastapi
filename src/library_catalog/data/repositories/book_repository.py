@@ -11,6 +11,11 @@ class BookRepository(BaseRepository[Book]):
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(session, Book)
 
+    @staticmethod
+    def _escape_like(value: str) -> str:
+        """Экранировать спецсимволы SQL LIKE (% и _)."""
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
     def _build_filter_conditions(
         self,
         title: str | None = None,
@@ -22,11 +27,13 @@ class BookRepository(BaseRepository[Book]):
         """Сформировать список условий фильтрации, игнорируя None значения."""
         conditions: list[ColumnElement[bool]] = []
         if title is not None:
-            conditions.append(Book.title.ilike(f"%{title}%"))
+            safe_title = self._escape_like(title)
+            conditions.append(Book.title.ilike(f"%{safe_title}%", escape="\\"))
         if author is not None:
-            conditions.append(Book.author.ilike(f"%{author}%"))
+            safe_author = self._escape_like(author)
+            conditions.append(Book.author.ilike(f"%{safe_author}%", escape="\\"))
         if genre is not None:
-            conditions.append(Book.genre.ilike(f"%{genre}%"))
+            conditions.append(func.lower(Book.genre) == genre.lower())
         if year is not None:
             conditions.append(Book.year == year)
         if available is not None:

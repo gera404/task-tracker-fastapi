@@ -1,11 +1,12 @@
 from datetime import datetime
 from uuid import UUID
-from pydantic import BaseModel, Field, field_validator
-from fastapi import Query
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
 
 class AppBaseModel(BaseModel):
     """Базовая модель с защитой от NUL-байтов во всех строках."""
-
+    model_config = ConfigDict(str_strip_whitespace=True)
     @field_validator("*", mode="before")
     @classmethod
     def reject_nul_byte(cls, value):
@@ -40,13 +41,14 @@ def validate_isbn(v: str | None) -> str | None:
 
     return clean
 
-class BookCreate(AppBaseModel):
+class BookCreate(BookBase):
     """Схема для создания книги."""
     isbn: str | None = Field(None, min_length=10, max_length=20)
     description: str | None = Field(None, max_length=5000)
     _check_isbn = field_validator("isbn")(validate_isbn)
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        str_strip_whitespace=True,
+        json_schema_extra={
             "examples": [
                 {
                     "title": "Clean Code",
@@ -55,19 +57,11 @@ class BookCreate(AppBaseModel):
                     "genre": "Programming",
                     "pages": 464,
                     "isbn": "978-0132350884",
-                    "description": "A Handbook of Agile Software Craftsmanship"
+                    "description": "A Handbook of Agile Software Craftsmanship",
                 }
             ]
-        }
-    }
-
-    class BookBase(AppBaseModel):
-        """Базовая схема с общими полями."""
-        title: str = Field(..., min_length=1, max_length=500)
-        author: str = Field(..., min_length=1, max_length=300)
-        year: int = Field(..., ge=1000, le=2100)
-        genre: str = Field(..., min_length=1, max_length=100)
-        pages: int = Field(..., gt=0, le=100_000)
+        },
+    )
 
 
 class BookUpdate(AppBaseModel):
@@ -76,7 +70,7 @@ class BookUpdate(AppBaseModel):
     author: str | None = Field(None, min_length=1, max_length=300)
     year: int | None = Field(None, ge=1000, le=2100)
     genre: str | None = Field(None, min_length=1, max_length=100)
-    pages: int | None = Field(None, gt=0)
+    pages: int | None = Field(None, gt=0, le=100_000)
     available: bool | None = None
     isbn: str | None = Field(None, min_length=10, max_length=20)
     description: str | None = None
