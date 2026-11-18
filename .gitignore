@@ -1,0 +1,35 @@
+# Виртуальные окружения
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# Кеш Python и скомпилированные файлы
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Кеш тестов и линтеров (pytest, mypy, ruff)
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Переменные окружения и секреты (важно не загружать в Git!)
+.env
+.env.*
+!.env.example
+
+# Сборка и дистрибутивы
+dist/
+build/
+*.egg-info/
+
+# Файлы IDE и ОС
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
