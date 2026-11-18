@@ -38,7 +38,7 @@ poetry run alembic upgrade head
 ```bash
 poetry run uvicorn src.library_catalog.main:app --reload
 ```
-После запуска интерактивная документация Swagger будет доступна по адресу: `http://127.0.0`.
+После запуска интерактивная документация Swagger будет доступна по адресу: `http://127.0.0.1:8000/docs`.
 
 ---
 
@@ -46,7 +46,7 @@ poetry run uvicorn src.library_catalog.main:app --reload
 
 ### Проверка состояния сервиса и БД
 ```bash
-curl -X GET "http://127.0.0.1:8000/api/v1/books"
+curl -X GET "http://127.0.0.1:8000/api/v1/health"
 ```
 
 ### Создание книги
@@ -66,12 +66,12 @@ curl -X POST "http://127.0.0.1:8000/api/v1/books" \
 
 ### Получение списка книг с фильтрацией и пагинацией
 ```bash
-curl -X GET "http://127.0.0?genre=Programming&page=1&page_size=10"
+curl -X GET "http://127.0.0.1:8000/api/v1/books"
 ```
 
 ### Частичное обновление книги
 ```bash
-curl -X PATCH "http://127.0.0/{book_id}" \
+curl -X PATCH "http://127.0.0.1:8000/api/v1/books/{book_id}" \
   -H "Content-Type: application/json" \
   -d '{
     "available": false
@@ -80,7 +80,7 @@ curl -X PATCH "http://127.0.0/{book_id}" \
 
 ### Удаление книги
 ```bash
-curl -X DELETE "http://127.0.0/{book_id}"
+curl -X DELETE "http://127.0.0.1:8000/api/v1/books/{book_id}"
 ```
 
 ---

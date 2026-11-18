@@ -1,7 +1,55 @@
+from unittest.mock import AsyncMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from src.library_catalog.domain.exceptions import (
+    OpenLibraryException,
+    OpenLibraryTimeoutException,
+)
 from src.library_catalog.main import app
+from src.library_catalog.external.openlibrary.client import OpenLibraryClient
+
+
+# Фикстура для подмены запросов в Open Library
+@pytest.fixture
+def mock_open_library():
+    def _setup(mode: str = "ok"):
+        if mode == "timeout":
+            side_effect = OpenLibraryTimeoutException(10.0)
+            mock_method = AsyncMock(side_effect=side_effect)
+        elif mode == "network_error":
+            side_effect = OpenLibraryException("Connection error")
+            mock_method = AsyncMock(side_effect=side_effect)
+        else:
+            # Имитируем успешный ответ от Open Library без выхода в интернет
+            mock_method = AsyncMock(
+                return_value={
+                    "cover_url": "https://openlibrary.org",
+                    "subjects": ["Programming", "Testing"],
+                    "publisher": "Addison-Wesley",
+                    "language": "eng",
+                    "rating": 4.5,
+                }
+            )
+
+        # Подменяем метод enrich (и на всякий случай search_by_isbn) у класса OpenLibraryClient
+        patcher_enrich = patch.object(OpenLibraryClient, "enrich", mock_method)
+        patcher_isbn = patch.object(OpenLibraryClient, "search_by_isbn", mock_method)
+
+        patcher_enrich.start()
+        patcher_isbn.start()
+        return patcher_enrich, patcher_isbn
+
+    patchers = []
+
+    def _apply(mode: str = "ok"):
+        patchers.extend(_setup(mode))
+
+    yield _apply
+
+    # Останавливаем подмену после завершения теста
+    for p in patchers:
+        p.stop()
 
 
 @pytest.mark.asyncio
@@ -20,8 +68,10 @@ async def test_health_check():
 
 
 @pytest.mark.asyncio
-async def test_books_crud_flow():
+async def test_books_crud_flow(mock_open_library):
     """Базовый сценарий создания, чтения, обновления и удаления книги."""
+    mock_open_library("ok")  # Включаем заглушку вместо реального Open Library
+
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
@@ -64,13 +114,105 @@ async def test_books_crud_flow():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("error_mode", ["timeout", "network_error"])
+async def test_create_book_open_library_errors(mock_open_library, error_mode):
+    """Проверка создания книги при таймауте или сетевой ошибке Open Library."""
+    mock_open_library(error_mode)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        payload = {
+            "title": "Resilient Book",
+            "author": "Robert Martin",
+            "year": 2008,
+            "genre": "Programming",
+            "pages": 464,
+            "isbn": "978-0132350884",
+        }
+        resp = await client.post("/api/v1/books/", json=payload)
+
+        # Проверяем, что приложение корректно переживает сбой внешнего API и создаёт книгу
+        assert resp.status_code == 201
+        book_id = resp.json()["book_id"]
+
+        # Чистим БД после теста
+        await client.delete(f"/api/v1/books/{book_id}")
+
+
+@pytest.mark.asyncio
+async def test_update_book_isbn_scenarios(mock_open_library):
+    """Проверка изменения ISBN на свой, занятый и свободный."""
+    mock_open_library("ok")
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        # Создаём две тестовые книги
+        book1 = (
+            await client.post(
+                "/api/v1/books/",
+                json={
+                    "title": "Book One",
+                    "author": "Author 1",
+                    "year": 2020,
+                    "genre": "Fiction",
+                    "pages": 100,
+                    "isbn": "978-1111111111",
+                },
+            )
+        ).json()
+
+        book2 = (
+            await client.post(
+                "/api/v1/books/",
+                json={
+                    "title": "Book Two",
+                    "author": "Author 2",
+                    "year": 2021,
+                    "genre": "Fiction",
+                    "pages": 200,
+                    "isbn": "978-2222222222",
+                },
+            )
+        ).json()
+
+        id1 = book1["book_id"]
+        id2 = book2["book_id"]
+
+        try:
+            # 1. Изменение на СВОЙ ЖЕ ISBN
+            resp_same = await client.patch(
+                f"/api/v1/books/{id1}", json={"isbn": "978-1111111111"}
+            )
+            assert resp_same.status_code == 200
+
+            # 2. Изменение на ЗАНЯТЫЙ ISBN второй книги
+            resp_taken = await client.patch(
+                f"/api/v1/books/{id1}", json={"isbn": "978-2222222222"}
+            )
+            assert resp_taken.status_code in (400, 409)
+
+            # 3. Изменение на новый СВОБОДНЫЙ ISBN
+            resp_free = await client.patch(
+                f"/api/v1/books/{id1}", json={"isbn": "978-3333333333"}
+            )
+            assert resp_free.status_code == 200
+            assert resp_free.json()["isbn"] == "9783333333333"
+        finally:
+            await client.delete(f"/api/v1/books/{id1}")
+            await client.delete(f"/api/v1/books/{id2}")
+
+
+@pytest.mark.asyncio
 async def test_validation_errors():
     """Проверка защиты от некорректных данных (большие числа, NUL-байт)."""
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
     ) as client:
-        # Слишком большое количество страниц
         bad_pages = await client.post(
             "/api/v1/books/",
             json={
@@ -83,7 +225,6 @@ async def test_validation_errors():
         )
         assert bad_pages.status_code == 422
 
-        # NUL-символ в строке
         nul_byte = await client.post(
             "/api/v1/books/",
             json={
